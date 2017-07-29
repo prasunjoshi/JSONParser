@@ -3,201 +3,164 @@ package com.parser;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.exception.JSONValidatorException;
 import com.object.JSONObject;
 
 public class JSONParser {
 	
-	public static final char EMPTY_CHAR = '\u0000';
+	//contents of the JSON file in a string
+	String jsonString;
 	
-	public String jsonString;
-	public JSONObject jobj;
-	public int index;
-	public char ch;
+	//index of the jsonString
+	static int i = 0;
 	
-	public JSONParser(String jsonString) {
-		// TODO Auto-generated constructor stub
-		this.jsonString = jsonString;
-		this.index = 0;
-		this.ch = jsonString.charAt(index);
+	//read jsonString character by character
+	private char ch;
+	
+	//invalid character or end of file
+	private static final char EMPTY_CHAR = '\u0000';
+	
+	public JSONParser(String s) {
+		jsonString = s;
+		ch = jsonString.charAt(0);
 	}
 	
-	public void next()
+	/**
+	 * 
+	 * @return true : jsonString is correct
+	 */
+	public boolean validate() {
+		try {
+			return isValidValue();
+		}catch(JSONValidatorException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+	}
+	
+	/**
+	 * Go to next character in the jsonString
+	 */
+	private void next()
 	{
 		
-		if(index < jsonString.length()-1) {
-			ch = jsonString.charAt(++index);
-			System.out.print(""+ch);
+		if(i < jsonString.length()-1) {
+			ch = jsonString.charAt(++i);
 			
 		}
 		else ch = EMPTY_CHAR;
 	}
-
-	public boolean validate() {
-		
-		return isValidValue();
-	}
 	
-	private boolean isValidString() {
-		// TODO Auto-generated method stub
-		System.out.println("in isVAlidString " + ch);
-		
-		HashMap<Character, Character> escapes = new HashMap<Character, Character>(){{
-													put('b','\b');
-													put('n','\n');
-													put('t','\t');
-													put('r','\r');
-													put('f','\f');
-													put('\"','\"');
-													put('\\','\\');
-												}};
-		
-		System.out.println("in isVAlidString " + ch);
-		String str = "";
-		if(ch == '\"')
-		{
-			System.out.println("in isVAlidString2 " + ch);
-			next();
-			while(index < jsonString.length() && ch != EMPTY_CHAR){
-				if(ch == '\"'){
-					next();
-					return true;
-				}
-				if(ch == '\\'){
-					next();
-					if(escapes.containsKey(ch))
-					{
-						str += escapes.get(ch);
-					}
-					else
-					{
-						str += ch;
-					}
-				}
-				else
-				{
-					str += ch;
-				}
-				next();
-		  }
-			System.out.println("returning from isValidString");
-			return false;
-	  }
-		else
-		{
-			System.out.println("returning from else of isValidString");
-			return false;
-		}
-	}
+	/**
+	 * Checks whether the string is a valid value conforming to JSON Grammar
+	 * 
+	 * @return true: Valid value in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidValue() throws JSONValidatorException {
 
-	private String getDigits()
-	{
-		String num = "";
-		while(ch>='0' && ch<='9')
-		{
-			num += ch;
-			next();
-		}
-		return num;
-	}
-	
-	private boolean isValidNumber() {
-		String num = "";
-		if(ch == '-')
-		{
-			num += '-';
-			next();
-		}
-		num = getDigits();
-		if(ch == '.')
-		{
-			num += '.';
-			num += getDigits();
-		}
-		if(ch == 'e' || ch == 'E')
-		{
-			num += ch;
-			next();
-		}
-		num += getDigits();
-		try {
-			Double d = Double.parseDouble(num);
-			if(d.isNaN())
-			{
-				System.out.println("returning from isValidNumber NAN");
-				return false;
+		switch(ch) {
+			case '{': {
+				if(!isValidObject())
+					return false;
+				break;
 			}
-			return true;			
-		} catch (Exception e) {
-			// TODO: handle exception
-			//error
-			System.out.println("returning from isValidNumber nan excpetion");
-			return false;
+			case '[': {
+				if(!isValidArray())
+					return false;
+				break;
+			}
+			case '\"': {
+				if(!isValidString())
+					return false;
+				break;
+			}
+			case 't': 
+			case 'f': {
+				if(!isValidBool()) 
+					return false;
+				break;
+			}
+			case 'n': {
+				if(!isValidNUll()) 
+					return false;
+				break;
+			}
+			default: { 
+				if(ch == '-' || (ch >= '0' && ch <= '9')) { 
+					if(!isValidNumber())
+						return false;
+					return true;
+				} else {
+					throw new JSONValidatorException("Something wrong at position: " + (i+1));
+				}
+			}
 		}
+		return true;
 	}
-
-	private boolean isValidNull() {
-
-/*		
- * 			We have encountered n till here now  
- * 		the next 3 chars should be 'ull' for valid json
- */
+	
+	
+	/**
+	 * Checks whether the string is a valid object conforming to JSON Grammar
+	 * 
+	 * @return true: Valid object in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidObject() throws JSONValidatorException {
 		
-		String nully = "";
-		int tmp=3;
-		while(tmp-- > 0)
-		{
-			next();
-			nully += ch;
-		}
-		if(nully.equals("ull")){
-			next();
-			return true;
-		}
-		System.out.println("returning from isValidNull");
-		return false;
-	}
-
-	private boolean isValidBool() {
-		String truly = "t";
-		int tmp=3;
-		char i = ch;
-		while(i == 't' && tmp-- > 0)
-		{
-			next();
-			truly += ch;
-		}
-		if(truly.equals("true"))
-		{
-			next();
-			return true;
-		}
-		String falsy = "f";		
-		tmp = 4;
-		while(i =='f' && tmp-- > 0)
-		{
-			next();
-			falsy += ch;
-		}
-		if(falsy.equals("false")){
-			next();
-			return true;
-		}
-
-			System.out.println("returning from isValidBool" + falsy);
-		return false;
-	}
-
-	private boolean isValidArray() {
-		// TODO Auto-generated method stub
-		ArrayList<Character> arr = new ArrayList<Character>();
-		if(ch == '[')
-		{
+		
+		if(ch == '{') {
 			next();
 			
+			if(ch == '}') {
+				next();
+				return true; 
+			}
+		
+			do {
+				if(ch == ',') 
+					next();
+				if(isValidString()) {
+					if(ch != ':'){
+						throw new JSONValidatorException("Object property expecting \":\" at position: " + (i+1));
+					}
+					next();
+					if(isValidValue()) { 
+						if(ch == '}') {  
+							next();
+							return true;
+						}
+					}
+					else {
+						throw new JSONValidatorException("Invalid value of object at position: " + (i+1));
+					}
+				}
+				else {
+					throw new JSONValidatorException("Invalid string of object at position: " + (i+1));
+				}
+			} while(ch == ','); 
+
+			return false;
+		}
+		else
+			return false;
+	}
+	
+	/**
+	 * Checks whether the string is a valid array conforming to JSON Grammar
+	 * 
+	 * @return true: Valid array in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidArray() throws JSONValidatorException {
+		ArrayList<Character> arr = new ArrayList<Character>();
+		
+		if(ch == '[') {
+			next();
 			if(ch == ']')
 				return true;
 			
-			do{
+			do {
 				if(ch == ',')	next();
 				if(isValidValue()){
 				arr.add(ch);
@@ -207,117 +170,220 @@ public class JSONParser {
 					return true;
 				}
 				}
-//				next();
 			}while(ch == ',');
-			System.out.println("returning from isValidArray if");
-			return false;
+			
+			throw new JSONValidatorException("Invalid array at position: " + (i+1));
 		}
 		else
-		{
-			System.out.println("returning from isValidArray else");
-			return false;			
-		}
+			return false;
 	}
-
-	private boolean isValidObject() {
-		// TODO Auto-generated method stub
-		if(ch == '{')
-		{
+	
+	/**
+	 * Checks whether the string is a valid string conforming to JSON Grammar
+	 * 
+	 * @return true: Valid string in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidString() throws JSONValidatorException {
+		@SuppressWarnings("serial")
+		HashMap<Character, Character> escapes = new HashMap<Character, Character>(){{
+												put('b', '\b');
+												put('n', '\n');
+												put('t', '\t');
+												put('r', '\r');
+												put('f', '\f');
+												put('\"', '\"');
+												put('\\', '\\');
+												}};
+		
+		@SuppressWarnings("unused")
+		String s = "";
+		
+		if(ch == '\"') {
 			next();
-			if(ch == '}')
-			{
-				next();
-				return true;				
-			}
-			do
-			{
-				if(ch == ',') next(); //new
-				System.out.println("in object do ka , wala next"+ch);
-				if(isValidString()){
-					if(ch != ':'){
-						//error
-						System.out.println("returning from isValidObject ch ':' case");
-						return false;
-					}
+			
+			while(i < jsonString.length() && ch != EMPTY_CHAR){
+				if(ch == '\"'){
 					next();
-					if(isValidValue()){
-						if(ch == '}')
-						{
+					return true;
+				}
+				if(ch == '\\'){
+					next();
+					if(escapes.containsKey(ch))
+					{
+						s += escapes.get(ch);
+					}
+					else
+					{
+						s += ch;
+					}
+				}
+				else
+				{
+					s += ch;
+				}
+				next();
+			}
+			
+			throw new JSONValidatorException("Invalid string at position: " + (i+1));
+		}
+		else
+			throw new JSONValidatorException("Invalid string at position: " + (i+1));
+	}
+	
+	/**
+	 * Checks whether the string is a valid boolean conforming to JSON Grammar
+	 * 
+	 * @return true: Valid boolean in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidBool() throws JSONValidatorException {
+		if(ch == 't') {
+			next();
+			if(ch == 'r') {
+				next();
+				if(ch == 'u') {
+					next();
+					if(ch == 'e') {
+						next();
+						return true;
+					}
+					else
+						throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
+				}
+				else
+					throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
+			}
+			else
+				throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
+		}
+		else if(ch == 'f') {
+			next();
+			if(ch == 'a') {
+				next();
+				if(ch == 'l') {
+					next();
+					if(ch == 's') {
+						next();
+						if(ch == 'e') {
 							next();
 							return true;
 						}
+						else
+							throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
 					}
-					else{
-							System.out.println("returning from isValidObject isValidVAlue else"+ch);
-												//error
-						return false;
-					}
+					else
+						throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
 				}
-				else{
-					System.out.println("returning from isValidObject isValidString else");
-					return false;
-				}
-//				next();
-				System.out.println("next before while of object " + ch);
-			}while((Character)ch != null && ch == ',');
-			System.out.println("returning from isValidObject after do while"+ch);
-			return false;
-		}
-		else
-		{
-			System.out.println("returning from isValidObject last else");
-			return false;
-		}
-	}
-
-	private boolean isValidValue() {
-		// TODO Auto-generated method stub
-		switch(ch){
-		case '{':{
-			if(!isValidObject())
-				return false;
-			break;
-		}
-			
-		case '[':{
-			if(!isValidArray())
-				return false;
-			break;
+				else
+					throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
+			}
+			else
+				throw new JSONValidatorException("Invalid Boolean at position: " + (i+1));
 		}
 		
-		case '\"':{
-			if(!isValidString())
-				return false;
-			break;
-		}
-		case 't':
-		case 'f':{
-			if(!isValidBool())
-				return false;
-			break;
-		}
-		case 'n':
-		{
-			if(!isValidNull())
-				return false;
-			break;
-		}
-		default:{
-			System.out.println("in default of is valid value1");
-			
-			if(ch == '-' || ch>='0' && ch <= '9')
-			{
-				System.out.println("in default of is valid value");
-				if(!isValidNumber())
-					return false;
-				else return true;
+		return false;
+	}
+	
+	/**
+	 * Checks whether the string is a valid null conforming to JSON Grammar
+	 * 
+	 * @return true: Valid null in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidNUll() throws JSONValidatorException{
+		next();
+		if(ch == 'u') {
+			next();
+			if(ch == 'l') {
+				next();
+				if(ch == 'l') {
+					next();
+					return true;
+				}
+				else 
+					throw new JSONValidatorException("Invalid NULL at position: " + (i+1));
+					
 			}
+			else
+				throw new JSONValidatorException("Invalid NULL at position: " + (i+1));
+		}
+		else
+			throw new JSONValidatorException("Invalid NULL at position: " + (i+1));
+	}
+	
+	/**
+	 * Helper method for isValidNumber()
+	 * @return: digits in String format
+	 */
+	private String getDigits() {
+		String num = "";
+		while(ch>='0' && ch<='9')
+		{
+			num += ch;
+			next();
+		}
+		return num;
+		
+	}
+	
+	/**
+	 * Checks whether the string is a valid number conforming to JSON Grammar
+	 * 
+	 * @return true: Valid number in json grammar
+	 * @throws JSONValidatorException
+	 */
+	private boolean isValidNumber() {
+		String num = "";
+		
+		//If a number starts with negative sign
+		if(ch == '-') {
+			num += ch;
+			next();
+		}
+		
+		//get digits of the number
+		num += getDigits();
+		
+		//get decimal point if there
+		if(ch == '.') {
+			num += ch;
+			next();
+			getDigits();
+		}
+
+		//get exponential if there
+		if(ch == 'e' || ch == 'E') {
+			num += ch;
+			next();
+			
+			// required - get sign of exponent
+			if(ch == '-' || ch == '+') {
+				num += ch;
+				next();
+			}
+			getDigits(); // exponent
+		}
+		
+		try {
+			Double d = Double.parseDouble(num);
+			if(d.isNaN())
+				return false;
+			else
+				return true;
+		}catch(NumberFormatException e) {
+			System.out.println("Invalid Number at position: " + (i+1));
+			return false;
 		}
 	}
-	return true;
-	}
-
-	public JSONObject parseJSON() {
+	
+	/**
+	 * parse the string and create a json object if the string is valid
+	 * 
+	 * @return: valid JSON object
+	 */
+	public JSONObject parseJson() {
+		//TODO
 		return null;
-	}
+	}	
 }

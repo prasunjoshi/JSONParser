@@ -15,7 +15,7 @@ public class MyMain {
 		try {
 			br = new BufferedReader(new FileReader(args[0]));
 			String line,jsonString = "";
-			System.out.println(args[0]);
+			
 			try {
 				while((line = br.readLine()) != null)
 				{
